@@ -28,15 +28,46 @@ def check_file_format(folder_path):
                 try:
                     # WAVファイルとして開けるか確認
                     with wave.open(file_path, 'rb') as wav_file:
-                        wav_file.getnchannels()  # チャネル情報を取得（有効性の確認）
+                        # チャネル情報を取得（有効性の確認）
+                        wav_file.getnchannels()
                 except wave.Error:
                     print(f"エラー: {file} はWAV形式ではありません。")
                 except Exception as e:
                     print(f"エラー: {file} のチェック中に予期しないエラーが発生しました: {e}")
 
 
-def check_format_consistency(folder_path):
+def check_format_consistency(folder_path, sample_rate=44100, sample_width=2, channels=2):
+    """
+    フォーマットの整合性をチェックする
+    :param sample_rate: 指定のサンプルレート（例: 44100Hz）
+    :param sample_width: 指定のビット深度（例: 16bit = 2bytes）
+    :param channels: 指定のチャンネル数（例: ステレオ=2）
+    """
     print("フォーマットの整合性をチェック中...")
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            if not file.lower().endswith(".wav"):
+                continue  # WAV以外はスキップ
+
+            file_path = os.path.join(root, file)
+            try:
+                with wave.open(file_path, 'rb') as wav_file:
+                    actual_sample_rate = wav_file.getframerate()
+                    actual_sample_width = wav_file.getsampwidth()
+                    actual_channels = wav_file.getnchannels()
+
+                    # サンプルレートのチェック
+                    if actual_sample_rate != sample_rate:
+                        print(f"エラー: {file} のサンプルレートが不一致です（{actual_sample_rate} != {sample_rate}）")
+                    # ビット深度のチェック
+                    elif actual_sample_width != sample_width:
+                        print(f"エラー: {file} のビット深度が不一致です（{actual_sample_width} != {sample_width}）")
+                    # チャンネル数のチェック
+                    elif actual_channels != channels:
+                        print(f"エラー: {file} のチャンネル数が不一致です（{actual_channels} != {channels}）")
+
+            except Exception as e:
+                print(f"エラー: {file} のチェック中に予期しないエラーが発生しました: {e}")
 
 
 def check_naming_rules(folder_path):
