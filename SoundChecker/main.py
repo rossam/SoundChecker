@@ -2,6 +2,8 @@ import os
 import wave
 import re
 
+from pydub import AudioSegment
+
 
 def count_files_in_folder(folder_path):
     """
@@ -20,10 +22,12 @@ def count_files_in_folder(folder_path):
 def check_file_format(folder_path):
     """
     ファイル形式の一致をチェックする
+    :param folder_path: チェック対象のフォルダパス
     """
     print("\nファイル形式のチェックを開始します...")
     for root, _, files in os.walk(folder_path):
         for file in files:
+            # .wavファイルのみチェック
             if file.lower().endswith(".wav"):
                 file_path = os.path.join(root, file)
                 try:
@@ -40,6 +44,7 @@ def check_file_format(folder_path):
 def check_format_consistency(folder_path, sample_rate=44100, sample_width=2, channels=2):
     """
     フォーマットの整合性をチェックする
+    :param folder_path: チェック対象のフォルダパス
     :param sample_rate: 指定のサンプルレート（例: 44100Hz）
     :param sample_width: 指定のビット深度（例: 16bit = 2bytes）
     :param channels: 指定のチャンネル数（例: ステレオ=2）
@@ -47,8 +52,9 @@ def check_format_consistency(folder_path, sample_rate=44100, sample_width=2, cha
     print("フォーマットの整合性をチェック中...")
     for root, _, files in os.walk(folder_path):
         for file in files:
+            # .wavファイルのみチェック
             if not file.lower().endswith(".wav"):
-                continue  # WAV以外はスキップ
+                continue
 
             file_path = os.path.join(root, file)
             try:
@@ -95,8 +101,43 @@ def check_naming_rules(folder_path, naming_pattern=r"^file\d+_[A-Za-z0-9_]+\.wav
                 print(f"エラー: {file} は命名規則に違反しています。")
 
 
-def check_volume_level(folder_path):
-    print("音量レベルのチェックを実行中...")
+def check_volume_level(folder_path, min_db=-20, max_db=-3):
+    """
+        音量レベルが指定範囲内かをチェックする
+        :param folder_path: チェック対象のフォルダパス
+        :param min_db: 許容する音量の下限（デフォルトは-20dB）
+        :param max_db: 許容する音量の上限（デフォルトは-3dB）
+    """
+    print("\n音量レベルのチェックを開始します...")
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            # .wavファイルのみチェック
+            if not file.lower().endswith(".wav"):
+                continue
+
+            file_path = os.path.join(root, file)
+
+            # ファイルサイズを確認し、0KBのファイルをスキップ
+            if os.path.getsize(file_path) == 0:
+                print(f"スキップ: {file} は空のファイルです。")
+                continue
+
+            try:
+                # ファイルをAudioSegmentで読み込む
+                audio = AudioSegment.from_file(file_path)
+
+                # 音量レベルを取得
+                rms_db = audio.dBFS
+
+                # 音量が範囲内かを確認
+                if rms_db < min_db:
+                    print(f"エラー: {file} の音量が小さすぎます（{rms_db:.2f}dB < {min_db}dB）")
+                elif rms_db > max_db:
+                    print(f"エラー: {file} の音量が大きすぎます（{rms_db:.2f}dB > {max_db}dB）")
+
+            except Exception as e:
+                print(f"エラー: {file} の音量チェック中にエラーが発生しました: {e}")
 
 
 def check_silence(folder_path):
