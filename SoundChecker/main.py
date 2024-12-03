@@ -1,5 +1,6 @@
 import os
 import wave
+import re
 
 
 def count_files_in_folder(folder_path):
@@ -70,8 +71,28 @@ def check_format_consistency(folder_path, sample_rate=44100, sample_width=2, cha
                 print(f"エラー: {file} のチェック中に予期しないエラーが発生しました: {e}")
 
 
-def check_naming_rules(folder_path):
-    print("命名規則のチェックを実行中...")
+def check_naming_rules(folder_path, naming_pattern=r"^file\d+_[A-Za-z0-9_]+\.wav$"):
+    """
+    命名規則の遵守をチェックする
+    :param folder_path: チェック対象のフォルダパス
+    :param naming_pattern: 命名規則の正規表現（デフォルトは "file+数字_任意の文字列.wav"）
+    """
+    print("\n命名規則のチェックを開始します...")
+
+    # 正規表現パターンをコンパイル
+    pattern = re.compile(naming_pattern)
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            # .wavファイルのみチェック
+            if not file.lower().endswith(".wav"):
+                continue
+
+            file_path = os.path.join(root, file)
+
+            # ファイル名が命名規則に従っているかチェック
+            if not pattern.match(file):
+                print(f"エラー: {file} は命名規則に違反しています。")
 
 
 def check_volume_level(folder_path):
