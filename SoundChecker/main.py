@@ -2,7 +2,7 @@ import os
 import wave
 import re
 
-from pydub import AudioSegment
+from pydub import AudioSegment, silence
 
 
 def count_files_in_folder(folder_path):
@@ -140,12 +140,72 @@ def check_volume_level(folder_path, min_db=-20, max_db=-3):
                 print(f"エラー: {file} の音量チェック中にエラーが発生しました: {e}")
 
 
-def check_silence(folder_path):
-    print("無音部分のチェックを実行中...")
+def check_silence(folder_path, silence_threshold=-50, chunk_size=10):
+    """
+    冒頭と末尾の無音部分を検出する
+    :param folder_path: チェック対象のフォルダパス
+    :param silence_threshold: 無音と判定する音量（デフォルトは-50dBFS）
+    :param chunk_size: 無音検出の精度（デフォルトは10ms単位）
+    """
+    print("\n無音部分のチェックを開始します...")
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            # .wavファイルのみチェック
+            if not file.lower().endswith(".wav"):
+                continue
+
+            file_path = os.path.join(root, file)
+
+            # ファイルサイズを確認し、0KBのファイルをスキップ
+            if os.path.getsize(file_path) == 0:
+                print(f"スキップ: {file} は空のファイルです。")
+                continue
+
+            try:
+                # ファイルをAudioSegmentで読み込む
+                audio = AudioSegment.from_file(file_path)
+
+                # 冒頭の無音部分を検出
+                start_trim = silence.detect_leading_silence(audio, silence_threshold, chunk_size)
+                # 末尾の無音部分を検出（逆再生して同じ方法で確認）
+                end_trim = silence.detect_leading_silence(audio.reverse(), silence_threshold, chunk_size)
+
+                # ファイル全体の長さ（ミリ秒）
+                total_length = len(audio)
+
+                # 無音部分があるかを確認
+                if start_trim > 0 or end_trim > 0:
+                    print(f"エラー: {file} に不要な無音部分があります。")
+                    print(f"  - 冒頭の無音: {start_trim}ms")
+                    print(f"  - 末尾の無音: {end_trim}ms")
+
+            except Exception as e:
+                print(f"エラー: {file} の無音チェック中にエラーが発生しました: {e}")
 
 
-def check_file_size(folder_path):
-    print("ファイルサイズのチェックを実行中...")
+def check_file_size(folder_path, min_size=1, max_size=10_000_000):
+    """
+    ファイルサイズが妥当かをチェックする
+    :param folder_path: チェック対象のフォルダパス
+    :param min_size: ファイルサイズの下限（デフォルトは1バイト）
+    :param max_size: ファイルサイズの上限（デフォルトは10MB）
+    """
+    print("\nファイルサイズのチェックを開始します...")
+
+    for root, _, files in os.walk(folder_path):
+        for file in files:
+            # ファイルパスを取得
+            file_path = os.path.join(root, file)
+
+            # ファイルサイズを取得
+            file_size = os.path.getsize(file_path)
+
+            # ファイルサイズをチェック
+            if file_size < min_size:
+                print(f"エラー: {file} のサイズが小さすぎます（{file_size} バイト < {min_size} バイト）")
+            elif file_size > max_size:
+                print(f"エラー: {file} のサイズが大きすぎます（{file_size} バイト > {max_size} バイト）")
 
 
 def main():
